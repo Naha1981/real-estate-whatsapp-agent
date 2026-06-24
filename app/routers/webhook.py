@@ -6,6 +6,7 @@ import json
 import logging
 import hashlib
 import hmac
+import base64
 from typing import Optional, Dict, Any
 
 from fastapi import APIRouter, Request, HTTPException, Header, Depends
@@ -121,8 +122,17 @@ async def evolution_webhook(request: Request, db: AsyncSession = Depends(get_db)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    event = payload.get("event", "")
+    # Handle webhookBase64: Evolution API encodes the 'data' field as base64
     data = payload.get("data", {})
+    if isinstance(data, str) and len(data) > 10:
+        try:
+            decoded = base64.b64decode(data).decode('utf-8')
+            data = json.loads(decoded)
+            logger.info("🔓 Decoded base64 webhook data")
+        except Exception:
+            pass  # Not base64, use as-is
+
+    event = payload.get("event", "")
 
     if event == "messages.upsert":
         await handle_message(data, db)
