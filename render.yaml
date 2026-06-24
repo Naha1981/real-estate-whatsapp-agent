@@ -1,0 +1,42 @@
+# Render Blueprint — iGosa v0.2
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: igosa
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: EVOLUTION_API_URL
+        sync: false
+      - key: EVOLUTION_API_KEY
+        sync: false
+      - key: EVOLUTION_INSTANCE_NAME
+        value: igosa
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./igosa.db
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+  # Optional: Keep-alive cron to prevent Render free tier sleep
+  - type: cron
+    name: igosa-keepalive
+    env: python
+    region: frankfurt
+    plan: free
+    schedule: "*/10 * * * *"
+    buildCommand: pip install requests
+    startCommand: python -c "import requests; requests.get('https://igosa.onrender.com/webhook/health')"

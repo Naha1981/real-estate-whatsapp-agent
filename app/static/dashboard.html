@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iGosa — Agent Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+  header { background: linear-gradient(135deg, #075e54, #128c7e); color: white; padding: 30px 20px; border-radius: 12px; margin-bottom: 20px; }
+  header h1 { font-size: 28px; margin-bottom: 5px; }
+  header p { opacity: 0.9; font-size: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .stat-card h3 { font-size: 12px; text-transform: uppercase; color: #666; margin-bottom: 8px; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 32px; font-weight: 700; color: #128c7e; }
+  .stat-card .sub { font-size: 12px; color: #888; margin-top: 4px; }
+  .section { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .section h2 { font-size: 16px; margin-bottom: 15px; color: #333; border-bottom: 2px solid #25d366; padding-bottom: 8px; display: inline-block; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 8px; border-bottom: 2px solid #e0e0e0; color: #666; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-active { background: #d4edda; color: #155724; }
+  .badge-pending { background: #fff3cd; color: #856404; }
+  .badge-closed { background: #d1ecf1; color: #0c5460; }
+  .badge-urgent { background: #f8d7da; color: #721c24; }
+  .loading { text-align: center; padding: 40px; color: #888; }
+  .error { text-align: center; padding: 40px; color: #721c24; background: #f8d7da; border-radius: 10px; }
+  .hot-area { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin: 3px; font-weight: 600; }
+  .empty { text-align: center; padding: 30px; color: #999; font-style: italic; }
+  .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <header>
+    <h1>🏠 iGosa</h1>
+    <p>WhatsApp AI Platform — Agent Dashboard</p>
+    <div id="agent-info" style="margin-top:15px;font-size:14px;"></div>
+  </header>
+
+  <div id="loading" class="loading">Loading dashboard... 📊</div>
+  <div id="error" class="error" style="display:none;"></div>
+  <div id="content" style="display:none;">
+    <!-- Stats -->
+    <div class="stats" id="stats-grid"></div>
+
+    <!-- Pipeline -->
+    <div class="section">
+      <h2>📋 Deal Pipeline</h2>
+      <div id="pipeline-content"></div>
+    </div>
+
+    <!-- Listings & Leases -->
+    <div class="section">
+      <h2>🏠 Listings & Rentals</h2>
+      <div id="property-content"></div>
+    </div>
+
+    <!-- Pending Tasks -->
+    <div class="section">
+      <h2>⏰ Pending Tasks</h2>
+      <div id="tasks-content"></div>
+    </div>
+
+    <!-- Hot Market -->
+    <div class="section">
+      <h2>🔥 Hot Areas</h2>
+      <div id="market-content"></div>
+    </div>
+  </div>
+
+  <div class="footer">iGosa v0.2.0 · WhatsApp AI for SA Estate Agents</div>
+</div>
+
+<script>
+async function loadDashboard() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const agentId = urlParams.get('agent_id') || 'demo';
+
+  if (agentId === 'demo') {
+    document.getElementById('loading').innerHTML = 
+      '<p>📋 <strong>Demo Dashboard</strong></p>' +
+      '<p style="margin-top:10px;">Add <code>?agent_id=YOUR_AGENT_ID</code> to the URL</p>' +
+      '<p style="margin-top:10px;">Or register an agent at <code>POST /api/agents</code></p>';
+    loadDemoData();
+    return;
+  }
+
+  try {
+    const resp = await fetch(`/api/dashboard/${agentId}`);
+    if (!resp.ok) throw new Error('Agent not found');
+    const data = await resp.json();
+    renderDashboard(data);
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').textContent = 'Error: ' + e.message;
+  }
+}
+
+function loadDemoData() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  document.getElementById('agent-info').innerHTML = '<strong>Demo Agent</strong> · Starter Tier';
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><h3>Active Listings</h3><div class="value">—</div></div>
+    <div class="stat-card"><h3>Active Deals</h3><div class="value">—</div></div>
+    <div class="stat-card"><h3>Pipeline Value</h3><div class="value">—</div></div>
+    <div class="stat-card"><h3>Est. Commission</h3><div class="value">—</div></div>
+    <div class="stat-card"><h3>Leads</h3><div class="value">—</div></div>
+    <div class="stat-card"><h3>Pending Tasks</h3><div class="value">—</div></div>
+  `;
+
+  document.getElementById('pipeline-content').innerHTML = '<div class="empty">Register an agent to see your pipeline</div>';
+  document.getElementById('property-content').innerHTML = '<div class="empty">Add listings via WhatsApp to see them here</div>';
+  document.getElementById('tasks-content').innerHTML = '<div class="empty">No pending tasks</div>';
+  document.getElementById('market-content').innerHTML = '<div class="empty">Market data loads after setup</div>';
+}
+
+function renderDashboard(data) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+
+  document.getElementById('agent-info').innerHTML = 
+    `<strong>${data.agent.name}</strong> · ${data.agent.business || ''} · ${data.agent.tier.toUpperCase()} Tier`;
+
+  // Stats
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><h3>Active Listings</h3><div class="value">${data.listings.active || 0}</div><div class="sub">${data.listings.under_offer || 0} under offer</div></div>
+    <div class="stat-card"><h3>Active Deals</h3><div class="value">${data.pipeline.active_deals || 0}</div><div class="sub">${data.pipeline.hot_deals || 0} hot</div></div>
+    <div class="stat-card"><h3>Pipeline Value</h3><div class="value" style="font-size:24px">${formatMoney(data.pipeline.pipeline_value)}</div></div>
+    <div class="stat-card"><h3>Est. Commission</h3><div class="value" style="font-size:24px">${formatMoney(data.pipeline.est_commission)}</div></div>
+    <div class="stat-card"><h3>Total Leads</h3><div class="value">${data.leads.total || 0}</div><div class="sub">${data.leads.new || 0} new</div></div>
+    <div class="stat-card"><h3>Closed MTD</h3><div class="value" style="font-size:24px">${data.pipeline.closed_this_month || 0}</div></div>
+  `;
+
+  // Pipeline
+  if (data.pipeline.active_deals > 0) {
+    document.getElementById('pipeline-content').innerHTML = `
+      <p style="margin-bottom:10px;">💰 Pipeline: ${formatMoney(data.pipeline.pipeline_value)} | 💵 Est. Commission: ${formatMoney(data.pipeline.est_commission)}</p>
+      <p><span class="badge badge-urgent">${data.pipeline.hot_deals || 0} require attention</span></p>`;
+  } else {
+    document.getElementById('pipeline-content').innerHTML = '<div class="empty">No active deals yet. Deals are created when leads progress to viewing/offer stage.</div>';
+  }
+
+  // Properties
+  let propHtml = `<p>🏠 <strong>${data.listings.active || 0} Active</strong> · 🟡 ${data.listings.under_offer || 0} Under Offer · 🔴 ${data.listings.sold || 0} Sold</p>`;
+  if (data.rentals.units > 0) {
+    propHtml += `<p style="margin-top:10px;">🏢 <strong>${data.rentals.units} Rental Units</strong> · ✅ ${formatMoney(data.rentals.collected)} collected · ⚠️ ${formatMoney(data.rentals.outstanding)} outstanding</p>`;
+  }
+  document.getElementById('property-content').innerHTML = propHtml;
+
+  // Tasks
+  if (data.tasks.pending_total > 0) {
+    document.getElementById('tasks-content').innerHTML = `
+      <p>📤 <strong>${data.tasks.pending_follow_ups} follow-ups</strong> pending</p>
+      <p>📋 <strong>${data.tasks.pending_total} total tasks</strong> scheduled</p>`;
+  } else {
+    document.getElementById('tasks-content').innerHTML = '<div class="empty">All caught up! No pending tasks.</div>';
+  }
+
+  // Market
+  if (data.market && data.market.length > 0) {
+    document.getElementById('market-content').innerHTML = 
+      data.market.map(a => `<span class="hot-area">📈 ${a.area} (R${(a.avg/1000).toFixed(0)}K)</span>`).join(' ');
+  } else {
+    document.getElementById('market-content').innerHTML = '<div class="empty">Market data unavailable</div>';
+  }
+}
+
+function formatMoney(val) {
+  if (!val && val !== 0) return 'R0';
+  const v = Math.round(val);
+  if (v >= 1000000) return `R${(v/1000000).toFixed(1)}M`;
+  if (v >= 1000) return `R${(v/1000).toFixed(0)}K`;
+  return `R${v}`;
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
