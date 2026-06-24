@@ -117,30 +117,64 @@ async def evolution_webhook(request: Request, db: AsyncSession = Depends(get_db)
             if not hmac.compare_digest(signature, expected):
                 raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
+    # Log raw webhook for debugging
+    logger.info(f"📥 Webhook received: {body[:500]}")
+
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        # Try base64 decode of entire body
+        try:
+            decoded = base64.b64decode(body).decode('utf-8')
+            payload = json.loads(decoded)
+            logger.info("🔓 Decoded base64 entire body")
+        except Exception:
+            logger.error(f"Failed to parse webhook body: {body[:200]}")
+            raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    # Handle webhookBase64: Evolution API encodes the 'data' field as base64
+    event = payload.get("event", "")
     data = payload.get("data", {})
+
+    # Handle base64-encoded data field (webhookBase64=true)
     if isinstance(data, str) and len(data) > 10:
         try:
             decoded = base64.b64decode(data).decode('utf-8')
             data = json.loads(decoded)
-            logger.info("🔓 Decoded base64 webhook data")
+            logger.info("🔓 Decoded base64 data field")
         except Exception:
-            pass  # Not base64, use as-is
+            pass
 
-    event = payload.get("event", "")
+    # Handle webhookByEvents=true — data may be nested: {"messages.upsert": {...}}
+    # Also handle camelCase event names from Evolution v2
+    event_lower = event.lower().replace(".", "")
+    
+    if isinstance(data, dict):
+        # Try nested event key: event may be like "messages.upsert"
+        for key in data:
+            key_clean = key.lower().replace(".", "").replace("_", "")
+            if "messages" in key_clean and "upsert" in key_clean:
+                nested = data[key]
+                # Nested could also be base64
+                if isinstance(nested, str) and len(nested) > 10:
+                    try:
+                        nested = json.loads(base64.b64decode(nested).decode('utf-8'))
+                    except Exception:
+                        pass
+                data = nested
+                logger.info(f"🔍 Extracted nested data from key: {key}")
+                break
 
-    if event == "messages.upsert":
+    logger.info(f"📨 Event: {event} | Data keys: {list(data.keys()) if isinstance(data, dict) else type(data).__name__}")
+
+    if "message" in event_lower or "upsert" in event_lower:
         await handle_message(data, db)
-    elif event == "connection.update":
-        status = data.get("status", "unknown")
+    elif "connection" in event_lower:
+        status = data.get("status", "unknown") if isinstance(data, dict) else "unknown"
         logger.info(f"📡 Connection: {status}")
-    elif event == "qrcode.update":
+    elif "qr" in event_lower:
         logger.info("📱 QR code received")
+    else:
+        logger.info(f"📨 Unhandled event: {event}")
 
     return {"status": "ok"}
 
