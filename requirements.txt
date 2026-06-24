@@ -1,27 +1,27 @@
 # iGosa — WhatsApp AI Platform for Estate Agents
 # Core dependencies (Render free tier optimized)
+# Pin only what's needed — let pip resolve compatible versions
 
 # Web framework
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-python-multipart==0.0.9
+fastapi>=0.110,<0.120
+uvicorn[standard]>=0.29,<0.31
+python-multipart>=0.0.9
 
 # Evolution API HTTP client
-httpx==0.27.0
-tenacity==8.5.0
+httpx>=0.27
+tenacity
 
 # AI / LLM
-openai==1.51.0
+openai>=1.40
 
 # Database
-sqlalchemy==2.0.35
-aiosqlite==0.20.0
+sqlalchemy>=2.0
+aiosqlite>=0.20
 
 # Utilities
-pydantic==2.9.2
-python-dotenv==1.0.1
-python-dateutil==2.9.0
+pydantic>=2.0
+python-dotenv>=1.0
+python-dateutil
 
-# Dev & Testing
-pytest==8.3.3
-pytest-asyncio==0.24.0
+# Dev
+pytest
