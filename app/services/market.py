@@ -7,8 +7,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-
+from app.services.database import Listing
 from app.services.valuation import AREA_BENCHMARKS
 
 logger = logging.getLogger(__name__)
