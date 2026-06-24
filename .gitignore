@@ -44,3 +44,7 @@ media/
 .pytest_cache/
 .coverage
 htmlcov/
+video_assets/*.mp4
+video_assets/*.aac
+video_assets/*.txt
+igosa_promo.mp4
