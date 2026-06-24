@@ -29,7 +29,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: PYTHON_VERSION
-        value: "3.11.9"
+        value: "3.11"
 
   # Optional: Keep-alive cron to prevent Render free tier sleep
   - type: cron
